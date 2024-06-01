@@ -45,8 +45,16 @@ public class MapBuilder extends JFrame {
     private final List<JButton> tileSelectionButtons;
     private List<JLabel> mapLabels;
     private final List<ImageIcon> tileIcons;
-    private final int[][] tileMap;
     private int selectedTile;
+
+    // TODO
+    //  use a 2d array of images or icons instead of int
+    //  doing this might make it possible to:
+    //  - zoom
+    //  - edit more tiles at once
+    //  - make a mini map
+    //  - etc etc
+    private final int[][] tileMap;
 
     public MapBuilder() throws HeadlessException {
         super("Map Builder");
