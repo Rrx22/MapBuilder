@@ -4,16 +4,13 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JMenu;
-import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.HeadlessException;
 import java.awt.Image;
@@ -40,26 +37,27 @@ import java.util.List;
 public class MapBuilder extends JFrame {
 
     public static final String IMAGE_SRC_DIR = "images/";
-    private static final int IMG_SIZE_MAP = 16;
+    public static final String INIT_TILE = "water00.png";
+    private static final int MAP_IMG_SIZE = 18;
     private static final int MAX_ROWS = 50;
     private static final int MAX_COLS = 50;
 
-    private final MapBuilder self;
     private final List<JButton> tileSelectionButtons;
+    private List<JLabel> mapLabels;
     private final List<ImageIcon> tileIcons;
-    private int[][] tileMap;
+    private final int[][] tileMap;
     private int selectedTile;
 
     public MapBuilder() throws HeadlessException {
         super("Map Builder");
-        setSize(858, 924);
-//        setResizable(false);
+        setSize(1148, 967);
+        setResizable(false);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        self = this;
         tileSelectionButtons = new ArrayList<>();
-        tileIcons = loadTileImages();
+        mapLabels = new ArrayList<>();
         tileMap = new int[MAX_ROWS][MAX_COLS];
+        tileIcons = loadTileImages();
     }
 
     public void createGUI() {
@@ -67,11 +65,17 @@ public class MapBuilder extends JFrame {
 
         // MENU
         MenuBar menuBar = new MenuBar();
-        Menu fileMenu = new Menu("File");
+        Menu menu = new Menu("Menu");
+
         MenuItem saveItem = new MenuItem("Save");
         saveItem.addActionListener(new SaveItemListener());
-        fileMenu.add(saveItem);
-        menuBar.add(fileMenu);
+        menu.add(saveItem);
+
+        MenuItem toggleBordersItem = new MenuItem("Show borders");
+        toggleBordersItem.addActionListener(new ToggleBordersListener());
+        menu.add(toggleBordersItem);
+
+        menuBar.add(menu);
 
         // MAP
         JPanel mapPanel = new JPanel(new GridLayout(MAX_ROWS, MAX_COLS));
@@ -79,14 +83,15 @@ public class MapBuilder extends JFrame {
         for (int row = 0; row < MAX_ROWS; row++) {
             for (int col = 0; col < MAX_COLS; col++) {
                 JLabel label = new JLabel(tileIcons.get(tileMap[row][col]));
-                label.setSize(IMG_SIZE_MAP, IMG_SIZE_MAP);
+                label.setSize(MAP_IMG_SIZE, MAP_IMG_SIZE);
                 label.addMouseListener(new TileMouseListener(row, col));
                 mapPanel.add(label);
+                mapLabels.add(label);
             }
         }
 
         // SELECTION
-        JPanel imageSelectionPanel = new JPanel(new GridLayout(3, 13));
+        JPanel imageSelectionPanel = new JPanel(new GridLayout(10, 5));
         imageSelectionPanel.setBackground(Color.BLACK);
         for (int i = 0; i < tileIcons.size(); i++) {
             JButton selectionButton = new JButton(scaledImage(tileIcons.get(i), 48, 48));
@@ -100,24 +105,36 @@ public class MapBuilder extends JFrame {
 
         setMenuBar(menuBar);
         add(mapPanel, BorderLayout.CENTER);
-        add(imageSelectionPanel, BorderLayout.SOUTH);
+        add(imageSelectionPanel, BorderLayout.EAST);
     }
 
     private List<ImageIcon> loadTileImages() {
         List<ImageIcon> icons = new ArrayList<>();
         URL imagesDir = MapBuilder.class.getClassLoader().getResource(IMAGE_SRC_DIR);
+        int initIdx = 0;
 
         try {
             Path imagesPath = Paths.get(imagesDir.toURI());
             try (DirectoryStream<Path> ds = Files.newDirectoryStream(imagesPath)) {
+                int i = 0;
                 for (Path file : ds) {
-                    System.out.println(IMAGE_SRC_DIR + file.getFileName().toString());
+                    String fileName = file.getFileName().toString();
+                    if (fileName.equals(INIT_TILE)) initIdx = i;
+                    System.out.println(i + ": " + IMAGE_SRC_DIR + fileName);
+
                     ImageIcon imageIcon = new ImageIcon(file.toUri().toURL());
-                    icons.add(scaledImage(imageIcon, IMG_SIZE_MAP, IMG_SIZE_MAP));
+                    icons.add(scaledImage(imageIcon, MAP_IMG_SIZE, MAP_IMG_SIZE));
+                    i++;
                 }
             }
         } catch (IOException | URISyntaxException e) {
             throw new RuntimeException(e);
+        }
+
+        for (int i = 0; i < MAX_ROWS; i++) {
+            for (int j = 0; j < MAX_COLS; j++) {
+                tileMap[i][j] = initIdx;
+            }
         }
 
         return icons;
@@ -146,8 +163,8 @@ public class MapBuilder extends JFrame {
     }
 
     private class TileMouseListener implements MouseListener {
-        private int row;
-        private int col;
+        private final int row;
+        private final int col;
         private static boolean clicked;
 
         public TileMouseListener(int row, int col) {
@@ -158,7 +175,7 @@ public class MapBuilder extends JFrame {
         @Override
         public void mousePressed(MouseEvent e) {
             clicked = true;
-            System.out.println(self.getSize());
+//            System.out.println(self.getSize());
         }
 
         @Override
@@ -178,11 +195,12 @@ public class MapBuilder extends JFrame {
 
         @Override
         public void mouseExited(MouseEvent e) {
+            // not implemented
         }
 
         private void updateImg(MouseEvent e) {
             tileMap[row][col] = selectedTile;
-            ImageIcon resizedIcon = scaledImage(tileIcons.get(selectedTile), IMG_SIZE_MAP, IMG_SIZE_MAP);
+            ImageIcon resizedIcon = scaledImage(tileIcons.get(selectedTile), MAP_IMG_SIZE, MAP_IMG_SIZE);
             ((JLabel) e.getSource()).setIcon(resizedIcon);
         }
     }
@@ -219,6 +237,17 @@ public class MapBuilder extends JFrame {
                 ex.printStackTrace();
                 JOptionPane.showMessageDialog(MapBuilder.this, "Error saving map to file!");
             }
+        }
+    }
+
+    private class ToggleBordersListener implements ActionListener {
+        private boolean hasBorder;
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            Border border = hasBorder ? null : new LineBorder(Color.BLACK, 1);
+            mapLabels.forEach(ml -> ml.setBorder(border));
+            hasBorder = !hasBorder;
         }
     }
 }
