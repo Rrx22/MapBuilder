@@ -2,6 +2,7 @@
  auto-import.
 .idea/
 MyGame.iml
+res/*
 
 ### Java ###
 # Compiled class file
