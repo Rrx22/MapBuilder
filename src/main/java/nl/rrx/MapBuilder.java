@@ -2,6 +2,7 @@ package nl.rrx;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -21,10 +22,13 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.DirectoryStream;
@@ -43,7 +47,8 @@ public class MapBuilder extends JFrame {
     private static final int MAX_COLS = 50;
 
     private final List<JButton> tileSelectionButtons;
-    private List<JLabel> mapLabels;
+    private List<JLabel> mapPanelItems;
+    private List<MapPanelRecord> mapPanelRecords;
     private final List<ImageIcon> tileIcons;
     private int selectedTile;
 
@@ -53,6 +58,7 @@ public class MapBuilder extends JFrame {
     //  - zoom
     //  - edit more tiles at once
     //  - make a mini map
+    //  - load existing map
     //  - etc etc
     private final int[][] tileMap;
 
@@ -63,7 +69,8 @@ public class MapBuilder extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
         tileSelectionButtons = new ArrayList<>();
-        mapLabels = new ArrayList<>();
+        mapPanelItems = new ArrayList<>();
+        mapPanelRecords = new ArrayList<>();
         tileMap = new int[MAX_ROWS][MAX_COLS];
         tileIcons = loadTileImages();
     }
@@ -74,15 +81,16 @@ public class MapBuilder extends JFrame {
         // MENU
         MenuBar menuBar = new MenuBar();
         Menu menu = new Menu("Menu");
-
+        MenuItem loadItem = new MenuItem("Load");
         MenuItem saveItem = new MenuItem("Save");
-        saveItem.addActionListener(new SaveItemListener());
-        menu.add(saveItem);
-
         MenuItem toggleBordersItem = new MenuItem("Show borders");
+        loadItem.addActionListener(new LoadItemListener());
+        saveItem.addActionListener(new SaveItemListener());
         toggleBordersItem.addActionListener(new ToggleBordersListener());
+        menu.add(loadItem);
+        menu.add(saveItem);
+        menu.addSeparator();
         menu.add(toggleBordersItem);
-
         menuBar.add(menu);
 
         // MAP
@@ -94,7 +102,8 @@ public class MapBuilder extends JFrame {
                 label.setSize(MAP_IMG_SIZE, MAP_IMG_SIZE);
                 label.addMouseListener(new TileMouseListener(row, col));
                 mapPanel.add(label);
-                mapLabels.add(label);
+                mapPanelItems.add(label);
+                mapPanelRecords.add(new MapPanelRecord(label, row, col));
             }
         }
 
@@ -152,6 +161,14 @@ public class MapBuilder extends JFrame {
         Image image = originalIcon.getImage();
         Image resizedImage = image.getScaledInstance(width, height, Image.SCALE_AREA_AVERAGING);
         return new ImageIcon(resizedImage);
+    }
+
+    private record MapPanelRecord (JLabel label, int row, int col) {
+        public boolean sameLocation(int row, int col) {
+            return this.row == row && this.col == col;
+        }
+
+
     }
 
     // ACTION LISTENERS
@@ -213,6 +230,37 @@ public class MapBuilder extends JFrame {
         }
     }
 
+    private class LoadItemListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            JFileChooser fileChooser = new JFileChooser();
+            int returnValue = fileChooser.showOpenDialog(MapBuilder.this);
+            if (returnValue == JFileChooser.APPROVE_OPTION) {
+                JOptionPane.showMessageDialog(MapBuilder.this, "You selected " + fileChooser.getSelectedFile().getName());
+            }
+
+            var file = fileChooser.getSelectedFile();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+                for (int row = 0; row < MAX_ROWS; row++) {
+                    String[] parsedTileNumbers = reader.readLine().split(" ");
+                    for (int col = 0; col < MAX_COLS; col++) {
+                        tileMap[col][row] = Integer.parseInt(parsedTileNumbers[col]);
+                        for (var x : mapPanelRecords) {
+                            if (x.sameLocation(row, col)) {
+                                x.label.setIcon(tileIcons.get(tileMap[col][row]));
+                                break;
+                            }
+                        }
+                    }
+                }
+
+
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
     private class SaveItemListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
@@ -235,7 +283,7 @@ public class MapBuilder extends JFrame {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath + ".txt"))) {
                 for (int row = 0; row < MAX_ROWS; row++) {
                     for (int col = 0; col < MAX_COLS; col++) {
-                        writer.write(Integer.toString(tileMap[row][col]));
+                        writer.write(String.format("%02d", tileMap[row][col]));
                         writer.write(" ");
                     }
                     writer.newLine();
@@ -254,7 +302,7 @@ public class MapBuilder extends JFrame {
         @Override
         public void actionPerformed(ActionEvent e) {
             Border border = hasBorder ? null : new LineBorder(Color.BLACK, 1);
-            mapLabels.forEach(ml -> ml.setBorder(border));
+            mapPanelItems.forEach(ml -> ml.setBorder(border));
             hasBorder = !hasBorder;
         }
     }
