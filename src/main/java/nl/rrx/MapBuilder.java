@@ -47,18 +47,12 @@ public class MapBuilder extends JFrame {
     private static final int MAX_COLS = 50;
 
     private final List<JButton> tileSelectionButtons;
-    private List<MapPanelRecord> mapPanelRecords;
+    private final List<MapPanelRecord> mapPanelRecords;
     private final List<ImageIcon> tileIcons;
-    private int selectedTile;
-
-    // TODO
-    //  use a 2d array of images or icons instead of int
-    //  doing this might make it possible to:
-    //  - zoom
-    //  - edit more tiles at once
-    //  - make a mini map
-    //  - etc etc
     private final int[][] tileMap;
+
+    private int selectedTile;
+    private boolean largePencilEnabled;
 
     public MapBuilder() throws HeadlessException {
         super("Map Builder");
@@ -77,18 +71,8 @@ public class MapBuilder extends JFrame {
 
         // MENU
         MenuBar menuBar = new MenuBar();
-        Menu menu = new Menu("Menu");
-        MenuItem loadItem = new MenuItem("Load");
-        MenuItem saveItem = new MenuItem("Save");
-        MenuItem toggleBordersItem = new MenuItem("Show borders");
-        loadItem.addActionListener(new LoadItemListener());
-        saveItem.addActionListener(new SaveItemListener());
-        toggleBordersItem.addActionListener(new ToggleBordersListener());
-        menu.add(loadItem);
-        menu.add(saveItem);
-        menu.addSeparator();
-        menu.add(toggleBordersItem);
-        menuBar.add(menu);
+        menuBar.add(getFileMenu());
+        menuBar.add(getToolsMenu());
 
         // MAP
         JPanel mapPanel = new JPanel(new GridLayout(MAX_ROWS, MAX_COLS));
@@ -159,7 +143,7 @@ public class MapBuilder extends JFrame {
         return new ImageIcon(resizedImage);
     }
 
-    private record MapPanelRecord (JLabel label, int row, int col) {
+    private record MapPanelRecord(JLabel label, int row, int col) {
         public boolean sameLocation(int row, int col) {
             return this.row == row && this.col == col;
         }
@@ -220,7 +204,13 @@ public class MapBuilder extends JFrame {
         private void updateImg(MouseEvent e) {
             tileMap[row][col] = selectedTile;
             ImageIcon resizedIcon = scaledImage(tileIcons.get(selectedTile), MAP_IMG_SIZE, MAP_IMG_SIZE);
-            ((JLabel) e.getSource()).setIcon(resizedIcon);
+            if (largePencilEnabled) {
+                mapPanelRecords.stream()
+                        .filter(r -> r.row >= row - 1 && r.row <= row + 1 && r.col >= col - 1 && r.col <= col + 1)
+                        .forEach(r -> r.label.setIcon(resizedIcon));
+            } else {
+                ((JLabel) e.getSource()).setIcon(resizedIcon);
+            }
         }
     }
 
@@ -238,17 +228,15 @@ public class MapBuilder extends JFrame {
                 for (int row = 0; row < MAX_ROWS; row++) {
                     String[] parsedTileNumbers = reader.readLine().split(" ");
                     for (int col = 0; col < MAX_COLS; col++) {
-                        tileMap[col][row] = Integer.parseInt(parsedTileNumbers[col]);
+                        tileMap[row][col] = Integer.parseInt(parsedTileNumbers[col]);
                         for (var x : mapPanelRecords) {
                             if (x.sameLocation(row, col)) {
-                                x.label.setIcon(tileIcons.get(tileMap[col][row]));
+                                x.label.setIcon(tileIcons.get(tileMap[row][col]));
                                 break;
                             }
                         }
                     }
                 }
-
-
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
@@ -299,5 +287,36 @@ public class MapBuilder extends JFrame {
             mapPanelRecords.forEach(mpr -> mpr.label.setBorder(border));
             hasBorder = !hasBorder;
         }
+
+    }
+
+    private class ToggleLargePencilListener implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            largePencilEnabled = !largePencilEnabled;
+        }
+
+    }
+
+    private Menu getFileMenu() {
+        Menu fileMenu = new Menu("File");
+        MenuItem loadItem = new MenuItem("Load");
+        MenuItem saveItem = new MenuItem("Save");
+        loadItem.addActionListener(new LoadItemListener());
+        saveItem.addActionListener(new SaveItemListener());
+        fileMenu.add(loadItem);
+        fileMenu.add(saveItem);
+        return fileMenu;
+    }
+
+    private Menu getToolsMenu() {
+        Menu toolsMenu = new Menu("Tools");
+        MenuItem toggleBordersItem = new MenuItem("Toggle borders");
+        MenuItem toggleLargePencil = new MenuItem("Toggle large pencil");
+        toggleBordersItem.addActionListener(new ToggleBordersListener());
+        toggleLargePencil.addActionListener(new ToggleLargePencilListener());
+        toolsMenu.add(toggleBordersItem);
+        toolsMenu.add(toggleLargePencil);
+        return toolsMenu;
     }
 }
