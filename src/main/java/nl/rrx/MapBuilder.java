@@ -47,7 +47,6 @@ public class MapBuilder extends JFrame {
     private static final int MAX_COLS = 50;
 
     private final List<JButton> tileSelectionButtons;
-    private List<JLabel> mapPanelItems;
     private List<MapPanelRecord> mapPanelRecords;
     private final List<ImageIcon> tileIcons;
     private int selectedTile;
@@ -58,7 +57,6 @@ public class MapBuilder extends JFrame {
     //  - zoom
     //  - edit more tiles at once
     //  - make a mini map
-    //  - load existing map
     //  - etc etc
     private final int[][] tileMap;
 
@@ -69,7 +67,6 @@ public class MapBuilder extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
         tileSelectionButtons = new ArrayList<>();
-        mapPanelItems = new ArrayList<>();
         mapPanelRecords = new ArrayList<>();
         tileMap = new int[MAX_ROWS][MAX_COLS];
         tileIcons = loadTileImages();
@@ -102,7 +99,6 @@ public class MapBuilder extends JFrame {
                 label.setSize(MAP_IMG_SIZE, MAP_IMG_SIZE);
                 label.addMouseListener(new TileMouseListener(row, col));
                 mapPanel.add(label);
-                mapPanelItems.add(label);
                 mapPanelRecords.add(new MapPanelRecord(label, row, col));
             }
         }
@@ -167,8 +163,6 @@ public class MapBuilder extends JFrame {
         public boolean sameLocation(int row, int col) {
             return this.row == row && this.col == col;
         }
-
-
     }
 
     // ACTION LISTENERS
@@ -302,7 +296,7 @@ public class MapBuilder extends JFrame {
         @Override
         public void actionPerformed(ActionEvent e) {
             Border border = hasBorder ? null : new LineBorder(Color.BLACK, 1);
-            mapPanelItems.forEach(ml -> ml.setBorder(border));
+            mapPanelRecords.forEach(mpr -> mpr.label.setBorder(border));
             hasBorder = !hasBorder;
         }
     }
