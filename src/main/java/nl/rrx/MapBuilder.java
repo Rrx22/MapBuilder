@@ -22,7 +22,7 @@ import static nl.rrx.util.Util.scaledImage;
 public class MapBuilder extends JFrame {
 
     public static final String IMAGE_SRC_DIR = "images/";
-    public static final String INIT_TILE = "grass00.png";
+    public static final String INIT_TILE = "02grass00.png";
     public static final int MAP_IMG_SIZE = 18;
     public static final int MAX_ROWS = 50;
     public static final int MAX_COLS = 50;
